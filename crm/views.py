@@ -1,17 +1,20 @@
 ﻿from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth import authenticate, login, logout
-from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.utils.timezone import now
-from .models import Client, Lead
-from .forms import ClientForm
-from .models import Client
-from .models import PaymentLog
-from .models import Invoice, Estimation
+from django.contrib.auth import authenticate, login, logout, get_user_model
+from django.contrib.auth.models import Permission
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.http import JsonResponse, HttpResponseForbidden
+from django.db import IntegrityError
+from django.urls import reverse_lazy
+from django.views.generic import UpdateView
+
+from .models import UserProfile
+from .forms import UserForm
+
+User = get_user_model()
 
 
-
-# --- AUTH VIEWS ---
+# ---------- LOGIN ----------
 def user_login(request):
     if request.method == "POST":
         username = request.POST.get("username")
@@ -24,64 +27,210 @@ def user_login(request):
             messages.error(request, "Invalid credentials.")
     return render(request, 'login.html')
 
+
 def logout_view(request):
     logout(request)
     return redirect('login')
 
 
-from django.shortcuts import render, redirect
-from django.contrib.auth.models import User
-from django.contrib import messages
-
-def admin_user(request):
+# ---------- CREATE USER ----------
+@login_required
+def create_user(request):
     if request.method == 'POST':
-        username = request.POST.get('username')
-        email = request.POST.get('email')
-        password = request.POST.get('password')
+        username = request.POST.get('username', '').strip()
+        email = request.POST.get('email', '').strip()
+        password = request.POST.get('password', '')
+        confirm_password = request.POST.get('confirm_password', '')
+        role = request.POST.get('role', 'User')
+        phone_number = request.POST.get('phone_number', '').strip()
+        selected_permissions = request.POST.getlist('permissions')  # ['app_label.codename', ...]
+
+        # --- Validation ---
+        if not username or not password or not confirm_password or not role:
+            messages.error(request, "All required fields must be filled.")
+            return redirect('create_user')
+
+        if password != confirm_password:
+            messages.error(request, "Passwords do not match.")
+            return redirect('create_user')
 
         if User.objects.filter(username=username).exists():
-            messages.error(request, 'Username already exists.')
-        else:
-            User.objects.create_user(username=username, email=email, password=password)
-            messages.success(request, 'User created successfully.')
+            messages.error(request, "Username already exists.")
+            return redirect('create_user')
 
-        return redirect('admin_user')  # Reload the page after submission
+        try:
+            # --- Create User ---
+            user = User.objects.create_user(
+                username=username,
+                email=email,
+                password=password
+            )
+            user.is_staff = True
+            user.is_superuser = (role == 'Admin')
+            user.role = role
+            user.save()
 
-    return render(request, 'crm/admin_user.html')
+            # --- Create Profile ---
+            user_profile = UserProfile.objects.create(
+                user=user,
+                name=username,
+                email=email,
+                phone_number=phone_number,
+                role=role
+            )
 
-from django.contrib.auth.models import User
-from django.contrib.auth.forms import UserCreationForm
-from django.shortcuts import render, redirect
+            # --- Assign Permissions ---
+            if role != 'Admin' and selected_permissions:
+                perms_to_add = []
+                for perm_str in selected_permissions:
+                    try:
+                        app_label, codename = perm_str.split('.')
+                        perm = Permission.objects.get(
+                            content_type__app_label=app_label,
+                            codename=codename
+                        )
+                        perms_to_add.append(perm)
+                    except Permission.DoesNotExist:
+                        messages.warning(request, f"Permission '{perm_str}' not found.")
 
-def user_list(request):
-    users = User.objects.all()
-    return render(request, 'user_list.html', {'users': users})
+                user.user_permissions.set(perms_to_add)
+                user_profile.permissions.set(perms_to_add)
 
-def user_create(request):
-    if request.method == 'POST':
-        form = UserCreationForm(request.POST)
-        if form.is_valid():
-            form.save()
+            messages.success(request, f"{role} '{username}' created successfully.")
             return redirect('user_list')
+
+        except IntegrityError:
+            messages.error(request, "Database error. Try again.")
+            return redirect('create_user')
+
+    # GET request
+    permissions = Permission.objects.filter(content_type__app_label='crm').order_by('name')
+    return render(request, 'users/add_user.html', {'permissions': permissions})
+
+
+# ---------- USER LIST ----------
+@login_required
+def user_list(request):
+    users = UserProfile.objects.select_related('user').all()
+    return render(request, "users/user_list.html", {'users': users})
+
+
+# ---------- EDIT USER ----------
+@login_required
+def edit_user(request, user_id):
+    user = get_object_or_404(User, pk=user_id)
+
+    # Filter permissions
+    if user.role == 'Admin':
+        permissions = Permission.objects.all()
     else:
-        form = UserCreationForm()
-    return render(request, 'user_create.html', {'form': form})
+        permissions = Permission.objects.exclude(
+            codename__in=['admin_access', 'purchase_access']
+        )
+
+    if request.method == 'POST':
+        selected_permissions = request.POST.getlist('permissions')  # ['app_label.codename', ...]
+        perms_to_set = []
+        for perm_str in selected_permissions:
+            try:
+                app_label, codename = perm_str.split('.')
+                perm = Permission.objects.get(
+                    content_type__app_label=app_label,
+                    codename=codename
+                )
+                perms_to_set.append(perm)
+            except Permission.DoesNotExist:
+                messages.warning(request, f"Permission '{perm_str}' not found.")
+
+        user.user_permissions.set(perms_to_set)
+        # Update profile permissions too
+        if hasattr(user, 'userprofile'):
+            user.userprofile.permissions.set(perms_to_set)
+
+        user.save()
+        messages.success(request, 'User updated successfully.')
+        return redirect('user_list')
+
+    return render(request, 'users/edit_user.html', {
+        'user_obj': user,
+        'permissions': permissions
+    })
 
 
+# ---------- DELETE USER ----------
+@login_required
+def delete_user(request, user_id):
+    user_profile = get_object_or_404(UserProfile, id=user_id)
+    user_profile.user.delete()
+    messages.success(request, "User deleted successfully.")
+    return redirect('user_list')
 
-from django.contrib.auth.decorators import login_required
-from django.db.models import Sum
-from django.shortcuts import render
-from .models import PaymentLog, Invoice
-from django.db.models import Count
-from crm.models import Client, Invoice 
+
+# ---------- GET PERMISSIONS BY ROLE ----------
+@login_required
+def get_permissions_by_role(request):
+    role = request.GET.get('role')
+
+    if role == 'Admin':
+        permissions = Permission.objects.all()
+    elif role == 'User':
+        permissions = Permission.objects.filter(
+            codename__in=[
+                'view_client', 'view_lead', 'view_estimation', 'view_invoice', 'view_report'
+            ]
+        )
+    else:
+        permissions = Permission.objects.none()
+
+    permission_list = [
+        {
+            'id': p.id,
+            'name': f"{p.content_type.app_label} | {p.name}",
+            'code': f"{p.content_type.app_label}.{p.codename}"
+        } for p in permissions
+    ]
+
+    return JsonResponse({'permissions': permission_list})
+
+from django.views.generic.edit import UpdateView
+from django.urls import reverse_lazy
+from django.contrib.auth import get_user_model
+from .forms import UserForm
+
+User = get_user_model()
+
+class UserUpdateView(UpdateView):
+    model = User
+    form_class = UserForm
+    template_name = 'users/user_form.html'
+    success_url = reverse_lazy('user_list')
+
 from django.utils.timezone import now
+from django.contrib.auth.decorators import login_required
+from django.db.models import Count, Sum, Q
+from django.db.models import Sum, Q
+from .models import Invoice, PaymentLog
+from django.shortcuts import render
+from crm.models import Client, Invoice, Lead, Estimation, UserPermission, PaymentLog
 
 
 @login_required
 def dashboard(request):
-    # Module Navigation (Sales and Purchase)
-    grouped_modules = {
+    user = request.user
+
+    # --- Permissions (supports multiple) ---
+    user_perms = UserPermission.objects.filter(userprofile__user=user)
+    user_perm_names = set(user_perms.values_list("name", flat=True))
+
+    context = {
+        "can_view_client": "can_view_client" in user_perm_names,
+        "can_view_lead": "can_view_lead" in user_perm_names,
+        "can_view_estimation": "can_view_estimation" in user_perm_names,
+        "can_view_invoice": "can_view_invoice" in user_perm_names,
+        "can_view_reports": "can_view_reports" in user_perm_names,
+    }
+
+    context["grouped_modules"] = {
         "Sales": [
             {"name": "Client", "url": "/client/"},
             {"name": "Lead", "url": "/lead/"},
@@ -96,42 +245,45 @@ def dashboard(request):
         ],
     }
 
+    # --- Financials ---
     total_invoiced = Invoice.objects.aggregate(total=Sum('total_value'))['total'] or 0
 
-    # Paid = Paid + Partial Paid
-    total_paid = PaymentLog.objects.filter(status__in=['Paid', 'Partial Paid']).aggregate(total=Sum('amount_paid'))['total'] or 0
+    # ✅ Paid = Paid + Partial Paid together
+    total_paid = PaymentLog.objects.filter(
+        Q(status="Paid") | Q(status="Partial Paid")
+    ).aggregate(total=Sum("amount_paid"))["total"] or 0
 
-    # Balance Due = sum of balance_due field from Invoices
-    total_balance_due = Invoice.objects.aggregate(total=Sum('balance_due'))['total'] or 0
+    total_balance_due = Invoice.objects.aggregate(total=Sum("balance_due"))["total"] or 0
 
+    # --- Stats ---
     total_leads = Lead.objects.count()
     total_quotations = Estimation.objects.count()
     total_invoices = Invoice.objects.count()
-
-    # Conversion %
-    conversion_rate = 0
-    if total_leads > 0:
-        conversion_rate = round((total_invoices / total_leads) * 100, 2)
-
-    quotation_status_data = (
-        Estimation.objects.values('status')
-        .annotate(count=Count('id'))
-        .order_by()
+    conversion_rate = (
+        round((total_invoices / total_leads) * 100, 2) if total_leads > 0 else 0
     )
 
-    # Format for Chart.js
-    labels = []
-    data = []
-    for item in quotation_status_data:
-        labels.append(item['status'])
-        data.append(item['count'])
+    # --- Quotation Status Chart ---
+    quotation_status = (
+        Estimation.objects.values("status")
+        .annotate(count=Count("id"))
+        .order_by("status")
+    )
 
-    top_clients = Client.objects.annotate(
-        total_leads=Count('lead')
-    ).order_by('-total_leads')[:4]
+    # Invoice status counts
+    invoice_status = (
+        Invoice.objects.values("status")
+        .annotate(count=Count("id"))
+        .order_by("status")
+    )
 
-    user = request.user
+    # --- Top Clients ---
+    top_clients = (
+        Client.objects.annotate(total_leads=Count("lead"))
+        .order_by("-total_leads")[:4]
+    )
 
+    # --- Filters ---
     filter_options = [
         ("This Month", "this_month"),
         ("This Quarter", "this_quarter"),
@@ -141,73 +293,63 @@ def dashboard(request):
         ("Previous Year", "previous_year"),
         ("Custom", "custom"),
     ]
+    selected_filter = request.GET.get("date_filter", "this_month")
 
-    selected_filter = request.GET.get('date_filter', 'today')
+    # --- Add to context ---
+    context.update(
+        {
+            "filter_options": filter_options,
+            "selected_filter": selected_filter,
+            "user_name": user.first_name or user.username,
+            "total_invoiced": total_invoiced,
+            "paid": total_paid,  # ✅ Paid + Partial Paid combined
+            "balance_due": total_balance_due,
+            "total_leads": total_leads,
+            "total_quotations": total_quotations,
+            "total_invoices": total_invoices,
+            "conversion_rate": conversion_rate,
+            "quotation_status": quotation_status,
+            "invoice_status": invoice_status,
+            "top_clients": top_clients,
+        }
+    )
 
-    context = {
-        "filter_options": filter_options,
-        "selected_filter": request.GET.get("date_filter", "this_month"),
-        "user_name": user.first_name or user.username,
-        'grouped_modules': grouped_modules,
-        'total_invoiced': total_invoiced,
-        'paid': total_paid,
-        'balance_due': total_balance_due,
-        'total_leads': total_leads,
-        'total_quotations': total_quotations,
-        'total_invoices': total_invoices,
-        'conversion_rate': conversion_rate,
-        "quotation_status_labels": labels,
-        "quotation_status_data": data,
-        'top_clients': top_clients,
-        'filter_options': filter_options,
-        'selected_filter': selected_filter,
-    }
-    return render(request, 'crm/dashboard.html', context)
+    return render(request, "dashboard.html", context)
 
-from datetime import date, timedelta
-from django.utils.timezone import now
 
-def get_date_range(filter_type):
-    today = date.today()
-    if filter_type == "today":
-        return today, today
-    elif filter_type == "yesterday":
-        return today - timedelta(days=1), today - timedelta(days=1)
-    elif filter_type == "this_week":
-        start = today - timedelta(days=today.weekday())
-        return start, today
-    elif filter_type == "previous_week":
-        start = today - timedelta(days=today.weekday() + 7)
-        end = start + timedelta(days=6)
-        return start, end
-    elif filter_type == "this_month":
-        start = today.replace(day=1)
-        return start, today
-    elif filter_type == "previous_month":
-        start = (today.replace(day=1) - timedelta(days=1)).replace(day=1)
-        end = start.replace(day=28) + timedelta(days=4)
-        end = end - timedelta(days=end.day)
-        return start, end
-    elif filter_type == "this_quarter":
-        month = (today.month - 1) // 3 * 3 + 1
-        start = today.replace(month=month, day=1)
-        return start, today
-    elif filter_type == "previous_quarter":
-        month = (today.month - 1) // 3 * 3 + 1 - 3
-        if month <= 0:
-            month += 12
-            year = today.year - 1
-        else:
-            year = today.year
-        start = date(year, month, 1)
-        end = date(year, month + 2, 1).replace(day=28) + timedelta(days=4)
-        end = end - timedelta(days=end.day)
-        return start, end
-    elif filter_type == "this_year":
-        return date(today.year, 1, 1), today
-    elif filter_type == "previous_year":
-        return date(today.year - 1, 1, 1), date(today.year - 1, 12, 31)
-    return None, None
+
+@login_required
+def confirm_payment(request, payment_id):
+    payment = get_object_or_404(PaymentLog, id=payment_id)
+    invoice = payment.invoice
+
+    # ✅ Always include Paid + Partial Paid when calculating invoice totals
+    total_paid = (
+        PaymentLog.objects.filter(
+            invoice=invoice, status__in=["Paid", "Partial Paid"]
+        ).aggregate(total=Sum("amount_paid"))["total"]
+        or 0
+    )
+
+    # --- Update invoice status ---
+    if total_paid >= invoice.total_value:
+        invoice.status = "Paid"
+    elif total_paid > 0:
+        invoice.status = "Partial Paid"
+    else:
+        invoice.status = "Unpaid"
+
+    invoice.paid_amount = total_paid
+    invoice.balance_due = invoice.total_value - total_paid
+    invoice.save()
+
+    # --- Sync payment log with invoice status ---
+    payment.status = invoice.status
+    payment.save()
+
+    return redirect("payment_list")
+
+
 
 
 
@@ -306,6 +448,12 @@ def client_entry(request):
         )
         return redirect('client')
 
+from django.shortcuts import render
+
+def client_view(request):
+    return render(request, 'crm/client_form.html')  # Adjust template name as needed
+
+
     
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
@@ -357,7 +505,10 @@ def lead_create(request):
 
     return redirect('lead_list')
 
+from django.shortcuts import render
 
+def lead_view(request):
+    return render(request, 'leads/lead_view.html')
 
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required

@@ -1,20 +1,45 @@
 ﻿from django.db import models
-from django.contrib.auth.models import User
-from django.utils import timezone
+from django.contrib.auth.models import AbstractUser
+from django.conf import settings
 
-
-# ---------- User Profile ----------
-class Profile(models.Model):
+# --------- Custom User Model ----------
+class User(AbstractUser):
     ROLE_CHOICES = [
-        ('admin', 'Admin'),
-        ('manager', 'Manager'),
-        ('sales', 'Sales Executive'),
+        ('Admin', 'Admin'),
+        ('User', 'User'),
     ]
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='User')
+    mobile = models.CharField(max_length=15, blank=True, null=True)
+
+    def __str__(self):
+        return self.username
+
+
+# --------- Permission Model ----------
+class UserPermission(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+
+    def __str__(self):
+        return self.name
+
+class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
-    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='sales')
+    mobile = models.CharField("0")
+
+
+# --------- User Profile Model ----------
+class UserProfile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    name = models.CharField(max_length=100)
+    email = models.EmailField()
+    phone_number = models.CharField(max_length=15, blank=True)
+    role = models.CharField(max_length=20, choices=User.ROLE_CHOICES, default='User')
+    permissions = models.ManyToManyField(UserPermission, blank=True)
 
     def __str__(self):
         return f"{self.user.username} - {self.role}"
+
+
 
 # ---------- Client ----------
 class Client(models.Model):
@@ -27,6 +52,7 @@ class Client(models.Model):
     email = models.EmailField(blank=True, null=True)
     mobile = models.CharField(max_length=15, blank=True, null=True)
     address = models.TextField(blank=True, null=True)
+
 
     def __str__(self):
         return self.company_name
@@ -271,13 +297,17 @@ class PaymentLog(models.Model):
     amount_paid = models.DecimalField(max_digits=12, decimal_places=2)
     utr_number = models.CharField(max_length=100)
     payment_date = models.DateField()
-    created_at = models.DateTimeField(auto_now_add=True)  # ✅ This line is the fix
-    status = models.CharField(max_length=50, choices=[("Paid", "Paid"), ("Partial Paid", "Partial Paid"), ("Pending", "Pending")])
+    created_at = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(
+        max_length=50,
+        choices=[("Paid", "Paid"), ("Partial Paid", "Partial Paid"), ("Pending", "Pending")],
+        default="Pending"   # ✅ default set
+    )
     remarks = models.TextField(blank=True, null=True)
-
 
     def __str__(self):
         return f"{self.invoice.invoice_no} - ₹{self.amount_paid}"
+
 
 
 
@@ -293,7 +323,7 @@ class Report(models.Model):
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True)
     report_type = models.CharField(max_length=50, choices=REPORT_TYPES)
-    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

@@ -11,6 +11,9 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
+AUTH_USER_MODEL = 'crm.User'
+
+
 # Application definition
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -19,6 +22,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django_extensions',
      'crm',  # Your custom app name
 ]
 

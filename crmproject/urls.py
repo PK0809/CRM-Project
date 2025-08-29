@@ -6,11 +6,19 @@ from django.contrib.auth import views as auth_views
 from django.views.generic import RedirectView
 from crm import views
 from crm.views import QuotationPDFView, report_list, export_report_excel, export_report_pdf
+from crm.views import UserUpdateView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('user/', views.user_list, name='user_list'),
-    path('user/create/', views.user_create, name='user_create'),
+    path('users/', views.user_list, name='user_list'),
+    path('users/create/', views.create_user, name='user_create'),
+    path('users/<int:pk>/edit/', UserUpdateView.as_view(), name='edit_user'),
+    path('users/<int:user_id>/delete/', views.delete_user, name='user_delete'),
+    path('create-user/', views.create_user, name='create_user'),
+    path('users/create/', views.create_user, name='create_user'),
+    path('get-permissions/', views.get_permissions_by_role, name='get_permissions'),
+    
+    
 
     # Dashboard
     path('dashboard/', views.dashboard, name='dashboard'),

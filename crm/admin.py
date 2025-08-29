@@ -55,3 +55,8 @@ class ReportAdmin(admin.ModelAdmin):
 
 
 
+from django.contrib import admin
+from .models import UserProfile, UserPermission
+
+admin.site.register(UserProfile)
+admin.site.register(UserPermission)

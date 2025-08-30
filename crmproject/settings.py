@@ -93,11 +93,13 @@ USE_TZ = True
 
 # Static files
 STATIC_URL = '/static/'
-STATICFILES_DIRS = [os.path.join(BASE_DIR, 'crm', 'static')]
+
 STATICFILES_DIRS = [
     BASE_DIR / "static",
+    BASE_DIR / "crm" / "static",
 ]
-STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
+
+STATIC_ROOT = BASE_DIR / "staticfiles"
 
 logo_path = os.path.join(settings.STATIC_ROOT, 'images', 'logo.png')
 

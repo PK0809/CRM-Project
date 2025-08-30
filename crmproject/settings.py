@@ -8,7 +8,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'your-secret-key'  # Replace this later
 
 DEBUG = False
-ALLOWED_HOSTS = ['crm.isecuresolutions.in', 'www.isecuresolutions.in']
+ALLOWED_HOSTS = ['127.0.0.1', 'www.crm.isecuresolutions.in', 'crm.isecuresolutions.in', 'www.isecuresolutions.in']
 
 AUTH_USER_MODEL = 'crm.User'
 

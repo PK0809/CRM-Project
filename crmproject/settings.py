@@ -101,8 +101,6 @@ STATICFILES_DIRS = [
 
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
-logo_path = os.path.join(settings.STATIC_ROOT, 'images', 'logo.png')
-
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # settings.py

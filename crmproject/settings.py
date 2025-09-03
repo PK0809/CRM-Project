@@ -93,11 +93,13 @@ USE_TZ = True
 
 # Static files
 STATIC_URL = '/static/'
-STATICFILES_DIRS = [os.path.join(BASE_DIR, 'crm', 'static')]
+
 STATICFILES_DIRS = [
-    BASE_DIR / "static",
+    BASE_DIR / "crm" / "static",   # your app static
+    BASE_DIR / "static",           # project-level static
 ]
-STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
+
+STATIC_ROOT = BASE_DIR / "staticfiles"  # where collectstatic will gather files
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 

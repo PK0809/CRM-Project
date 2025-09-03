@@ -1,0 +1,45 @@
+[33mcommit aca292ddb42a287807fbbebb74f308699a64532f[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m
+Merge: e98dd98 db6cf68
+Author: PK0809 <nagarajnadahrts33@gmail.com>
+Date:   Wed Sep 3 13:01:29 2025 +0530
+
+    Merge branch 'main' of https://github.com/PK0809/django-crm
+    
+    ~
+    ~
+    .git/COMMIT_EDITMSG [unix] (13:01 03/09/2025
+    )
+
+[33mcommit e98dd98135dc476dc1bf24c625372f0b811c34a9[m
+Author: PK0809 <nagarajnadahrts33@gmail.com>
+Date:   Wed Sep 3 12:55:29 2025 +0530
+
+    Initial commit
+
+ django-crm   | 1 [31m-[m
+ django-crm-1 | 1 [31m-[m
+ 2 files changed, 2 deletions(-)
+
+[33mcommit db6cf68bdbf521820273f982da24270f869c514f[m
+Merge: 31cc974 2720a18
+Author: PK0809 <nagarajnadahrts33@gmail.com>
+Date:   Wed Sep 3 12:40:03 2025 +0530
+
+    Merge branch 'main' of https://github.com/PK0809/django-crm
+
+[33mcommit 31cc97413bd2d95455845083c1be3fccd75be40b[m
+Author: PK0809 <nagarajnadahrts33@gmail.com>
+Date:   Wed Sep 3 12:34:58 2025 +0530
+
+    changs
+
+ django-crm   | 1 [31m-[m
+ django-crm-1 | 1 [31m-[m
+ 2 files changed, 2 deletions(-)
+
+[33mcommit 2720a185b051d04ad54b32e029754036356a6d3a[m
+Merge: 00cb9da 8c7832a
+Author: PK0809 <nagarajnadahrts33@gmail.com>
+Date:   Wed Sep 3 12:02:22 2025 +0530
+
+    Merge branch 'main' of https://github.com/PK0809/django-crm

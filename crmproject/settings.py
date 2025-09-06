@@ -23,7 +23,7 @@ DEBUG = env.bool("DEBUG", default=False)
 ALLOWED_HOSTS = env.list(
     "ALLOWED_HOSTS",
     default=[
-        "127.0.0.8000",
+        "127.0.0.1",
         "localhost",
         "crm.isecuresolutions.in",
         "www.crm.isecuresolutions.in",

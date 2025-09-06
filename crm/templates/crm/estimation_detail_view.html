@@ -8,9 +8,17 @@
             <div class="p-6 border-r border-gray-300 bg-white overflow-auto">
                 <h3 class="text-2xl font-bold mb-4 text-gray-900">Client PO Attachment</h3>
                 {% if estimation.po_attachment %}
+<<<<<<< HEAD
                 <iframe src="{{ estimation.po_attachment.url }}" width="100%" height="500"></iframe>
                 {% else %}
                 <p class="text-gray-500 italic">No attachment available.</p>
+=======
+                <iframe src="{{ estimation.po_attachment.url }}#toolbar=0"
+                        class="w-full h-[85vh] border rounded"
+                        style="min-height: 500px;"></iframe>
+                {% else %}
+                <p class="text-gray-500 italic">No attachment uploaded.</p>
+>>>>>>> 9a85476b80137d17312bc3d00a29ba847fb293b4
                 {% endif %}
             </div>
 

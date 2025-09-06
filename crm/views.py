@@ -507,6 +507,7 @@ def lead_create(request):
 
 from django.shortcuts import render
 
+<<<<<<< HEAD
 from django.shortcuts import render, redirect
 from .forms import ClientForm   # assuming you already have a form for Client
 from .models import Client
@@ -522,6 +523,8 @@ def add_client(request):
     return render(request, "crm/client_form.html", {"form": form})
 
 
+=======
+>>>>>>> 9a85476b80137d17312bc3d00a29ba847fb293b4
 def lead_view(request):
     return render(request, 'leads/lead_view.html')
 

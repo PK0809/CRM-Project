@@ -25,6 +25,7 @@ class EstimationForm(forms.ModelForm):
     class Meta:
         model = Estimation
         fields = [
+<<<<<<< HEAD
             "quote_no", "quote_date", "lead_no", "company_name",
             "validity_days", "gst_no", "billing_address",
             "shipping_address", "terms_conditions", "bank_details",
@@ -32,6 +33,11 @@ class EstimationForm(forms.ModelForm):
             "status", "credit_days", "po_number", "po_date",
             "po_received_date", "po_attachment", "remarks",
             "follow_up_date", "follow_up_remarks"
+=======
+            'quote_date', 'lead_no', 'validity_days', 'billing_address', 
+            'shipping_address', 'discount', 'terms_conditions', 
+            'sub_total', 'gst_amount', 'total'
+>>>>>>> 9a85476b80137d17312bc3d00a29ba847fb293b4
         ]
 
 

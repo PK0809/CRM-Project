@@ -24,7 +24,11 @@ class UserPermission(models.Model):
 
 class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
+<<<<<<< HEAD
     mobile = models.CharField(max_length=15, blank=True, null=True)
+=======
+    mobile = models.CharField("0")
+>>>>>>> 9a85476b80137d17312bc3d00a29ba847fb293b4
 
 
 # --------- User Profile Model ----------
@@ -146,7 +150,11 @@ class Estimation(models.Model):
     po_number = models.CharField(max_length=100, blank=True, null=True)
     po_date = models.DateField(blank=True, null=True)
     po_received_date = models.DateField(blank=True, null=True)
+<<<<<<< HEAD
     po_attachment = models.FileField(upload_to="po_attachments/", blank=True, null=True)
+=======
+    po_attachment = models.FileField(upload_to='po_attachments/', blank=True, null=True)
+>>>>>>> 9a85476b80137d17312bc3d00a29ba847fb293b4
     remarks = models.TextField(blank=True, null=True)
     follow_up_date = models.DateField(null=True, blank=True)
     follow_up_remarks = models.TextField(null=True, blank=True)
